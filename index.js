@@ -16,6 +16,7 @@ app.set('views engine', 'ejs')
 
 // 设置静态文件目录
 app.use(express.static(path.join(__dirname, 'public')))
+
 // session 中间件
 app.use(session({
   name: config.session.key, // 设置cookie中保存session id的字段名称
@@ -38,5 +39,5 @@ routes(app)
 
 // 监听端口，启动程序
 app.listen(config.port, function() {
-  config.log(`${pkg.name} listening on port ${config.port}`)
+  console.log(`${pkg.name} listening on port ${config.port}`)
 })
