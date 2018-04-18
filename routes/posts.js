@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 
 const PostModel = require('../models/posts')
+const CommentModel = require('../models/comments')
 
 const checkLogin = require('../middlewares/check').checkLogin
 
@@ -61,38 +62,47 @@ router.get('/:postId', checkLogin, function(req, res, next) {
 
   Promise.all([
     PostModel.getPostById(postId), // 获取文章信息
+    CommentModel.getComments(postId), // 获取该文章的所有留言
     PostModel.incPv(postId) // pv加1
   ]).then(function(result) {
     const post = result[0]
+    let comments = result[1]
+    console.log(comments)
     if (!post) {
       throw new Error('该文章不存在')
     }
+    if (comments === null) {
+      comments = []
+    }
     res.render('post', {
-      post: post
+      post: post,
+      comments: comments
     })
   }).catch(next)
 })
 
 // GET /posts/:postId/edit 更新文章页
-router.get('/:postId/edit', checkLogin, function(req, res, next) {
+router.get('/:postId/edit', checkLogin, function (req, res, next) {
   const postId = req.params.postId
   const author = req.session.user._id
 
-  PostModel.getRawPostById(postId).then(function(post) {
-    if (!post) {
-      throw new Error('该文章不存在')
-    }
-    if (author.toString() !== post.author._id.toString()) {
-      throw new Error('权限不足')
-    }
-    res.render('edit', {
-      post: post
+  PostModel.getRawPostById(postId)
+    .then(function (post) {
+      if (!post) {
+        throw new Error('该文章不存在')
+      }
+      if (author.toString() !== post.author._id.toString()) {
+        throw new Error('权限不足')
+      }
+      res.render('edit', {
+        post: post
+      })
     })
-  }).catch(next)
+    .catch(next)
 })
 
 // POST /posts/:postId/edit 更新一篇文章
-router.post('/:postId/edit', checkLogin, function(req, res, next) {
+router.post('/:postId/edit', checkLogin, function (req, res, next) {
   const postId = req.params.postId
   const author = req.session.user._id
   const title = req.fields.title
@@ -106,43 +116,50 @@ router.post('/:postId/edit', checkLogin, function(req, res, next) {
     if (!content.length) {
       throw new Error('请填写内容')
     }
-  } catch(e) {
+  } catch (e) {
     req.flash('error', e.message)
     return res.redirect('back')
   }
 
-  PostModel.getRawPostById(postId).then(function(post) {
-    if (!post) {
-      throw new Error('文章不存在')
-    }
-    if (post.author._id.toString() !== author.toString()) {
-      throw new Error('没有权限')
-    }
-    PostModel.updatePostById(postId, {title: title, content: content}).then(function() {
-      req.flash('success', '编辑文章成功')
-      // 编辑成功后跳转到上一页
-      res.redirect(`/posts/${postId}`)
+  PostModel.getRawPostById(postId)
+    .then(function (post) {
+      if (!post) {
+        throw new Error('文章不存在')
+      }
+      if (post.author._id.toString() !== author.toString()) {
+        throw new Error('没有权限')
+      }
+      PostModel.updatePostById(postId, { title: title, content: content })
+        .then(function () {
+          req.flash('success', '编辑文章成功')
+          // 编辑成功后跳转到上一页
+          res.redirect(`/posts/${postId}`)
+        })
+        .catch(next)
     })
-  })
 })
 
 // GET /posts/:postId/remove 删除一篇文章
-router.get('/:postId/remove', checkLogin, function(req, res, next) {
+router.get('/:postId/remove', checkLogin, function (req, res, next) {
   const postId = req.params.postId
   const author = req.session.user._id
 
-  PostModel.getRawPostById(postId).then(function(post) {
-    if (!post) {
-      throw new Error('文章不存在')
-    }
-    if (post.author._id.toString() !== author.toString()) {
-      throw new Error('没有权限')
-    }
-    PostModel.delPostById(postId).then(function() {
-      req.flash('success', '删除文章成功')
-      res.redirect('/posts')
-    }).catch(next)
-  })
+  PostModel.getRawPostById(postId)
+    .then(function (post) {
+      if (!post) {
+        throw new Error('文章不存在')
+      }
+      if (post.author._id.toString() !== author.toString()) {
+        throw new Error('没有权限')
+      }
+      PostModel.delPostById(postId)
+        .then(function () {
+          req.flash('success', '删除文章成功')
+          // 删除成功后跳转到主页
+          res.redirect('/posts')
+        })
+        .catch(next)
+    })
 })
 
 module.exports = router
